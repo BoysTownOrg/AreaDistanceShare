@@ -1,5 +1,7 @@
-function ifig=PlotNearTM_Share(ifig,Base,swLossy,Naf,hRF,grP,grM,glP,Mnear,...
+function ifig=PlotNearTM_Share2(ifig,Base,swLossy,Naf,hRF,grP,grM,glP,Mnear,...
   nOffset,tmsP0,nMat2p,pMax1,p0NormInc)
+% PlotNearTM_Share2, 1/24/22.  Revised from shared code are 2020 area
+% paper.
 % CalcNearTM_Share, 5/28/2020 based on CalcNearTM, 2/26/2020.
 % Calculate area-distance function from measured RF
 % at probe tip (hRF) over duration of Naf samples for discontinuities from
@@ -96,9 +98,9 @@ text(xlim(2)-dx8,ylim(2),'B',...
   'HorizontalAlignment','right','VerticalAlignment','top');
 
 logfr=log2(1e-3*Base.fAnalysis); % for plotting re:0 at 1 kHz
-XLimf=[-2, 4];
-XTickf=-2:4;
-XTickLbl={'0.25','0.5','1','2','4','8','16'};
+XLimf=[-3.2, 4.5];
+XTickf=-3:4;
+XTickLbl={'0.13','0.25','0.5','1','2','4','8','16'};
 if swLevel
   sy='Level (dB)';
 else
@@ -107,17 +109,21 @@ end
 
 hf2=figure(ifig);
 ifig=ifig+1;
-set(hf2,'Position',[100,100,760,840]);
+set(hf2,'Position',[100,100,780,860],'DefaultAxesFontSize',9);
 
-ixz=find(LRp>0,1); % non-empty if energy reflectance exceeds 1 near TM
+%ixz=find(LRp>0,1); % non-empty if energy reflectance exceeds 1 near TM
+ixz=[]; % use this for now
+
 subplot(3,2,5)
 hp=plot(logfr,LTp,logfr,LTtm);
 hp(1).Color=cr;
 hp(2).Color=cb;
 if swLevel
-  ylimLf=[-12,7.5];
-  ytickLf=-12:3:6;
-  dx9=XLimf(1)+0.2;
+  yminL=min([LTp,LTtm,LRp,LRtm]);
+  ymaxL=max([LTp,LTtm,LRp,LRtm]);
+  ytickLf=3*(floor(yminL/3):ceil(ymaxL/3)); % new
+  ylimLf=[ytickLf(1),ytickLf(end)];
+  dx9=XLimf(2)-0.2;
 else
   ylimLf=[0,3];
   ytickLf=0:0.5:3;
@@ -129,7 +135,7 @@ title('Total pressure level');
 xlabel('Frequency (kHz)');
 ylabel(sy);
 text(dx9,ylimLf(2),'E',...
-  'HorizontalAlignment','left','VerticalAlignment','top');
+  'HorizontalAlignment','right','VerticalAlignment','top');
 legend('Probe tip','Near TM','Location','SouthWest','AutoUpdate','off','Box','off');
 hold on;
 if ~isempty(ixz)
@@ -141,17 +147,39 @@ subplot(3,2,6), % add delay of xTM in time
 hp=plot(logfr,GDTp,'-',logfr,GDTtm,'-',XLimf,repmat(MTMdelay,1,2),'k:');
 hp(1).Color=cr;
 hp(2).Color=cb;
-ylimgd=[-0.5,0.5];
-ytickgd=-0.4:0.2:0.4;
+temp=[GDTp,GDTtm,GDRp,GDRtm];
+ylimgd=[min(temp),max(temp)];
+yrng=range(ylimgd);
+if yrng>2
+  mult=2;
+elseif yrng>1
+  mult=5;
+else
+  mult=10;
+end
+yt1=floor(ylimgd(1)*mult);
+yt2=ceil(ylimgd(2)*mult);
+if 0 % may need later, perhaps not quite correct
+  if mod(yt1,2)
+    yt1=yt1-1; % it's odd
+    ylimgd(1)=yt1/mult;
+  end
+end
+ytickgd=(yt1:yt2)/mult; % includes 0
+if abs(ylimgd(2))<abs(ylimgd(1))
+  slegLoc='SouthWest';
+else
+  slegLoc='NorthWest';
+end
 set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
   'YLim',ylimgd,'YTick',ytickgd);
 title('Total pressure group delay');
 xlabel('Frequency (kHz)');
 ylabel('Group delay (ms)');
 text(dx9,ylimgd(2),'F',...
-  'HorizontalAlignment','left','VerticalAlignment','top');
+  'HorizontalAlignment','right','VerticalAlignment','top');
 hl=legend('Probe tip','Near TM','One-way delay to Near TM',...
-  'Location','SouthWest','AutoUpdate','off','Box','off');
+  'Location',slegLoc,'AutoUpdate','off','Box','off');
 hold on;
 if ~isempty(ixz)
   plot(repmat(logfr(ixz),1,2),ylimLf,'r:');
@@ -167,14 +195,14 @@ title('Reverse pressure level');
 xlabel('Frequency (kHz)');
 ylabel(sy);
 text(dx9,ylimLf(2),'C',...
-  'HorizontalAlignment','left','VerticalAlignment','top');
+  'HorizontalAlignment','right','VerticalAlignment','top');
 hold on;
 plot(logfr,LFtmM1,'k-.');
 legend('Probe tip (measured RF)','Near TM',...
   'Forward pressure into Near TM',...
   'Location','SouthWest','AutoUpdate','off','Box','off');
 plot(XLimf,zeros(1,2),'k:');
-if ~isempty(ixz)
+if ~isempty(ixz) && ixz(1)>1
   plot(repmat(logfr(ixz),1,2),ylimLf,'r:');
   text(logfr(ixz),6,['Probe-tip level>0 dB at ',...
     num2str(2^logfr(ixz),'%.2f'),' kHz'],'HorizontalAlignment','right');
@@ -191,9 +219,10 @@ title('Reverse pressure group delay');
 xlabel('Frequency (kHz)');
 ylabel('Group delay (ms)');
 text(dx9,ylimgd(2),'D',...
-  'HorizontalAlignment','left','VerticalAlignment','top');
+  'HorizontalAlignment','right','VerticalAlignment','top');
 legend('Probe tip (measured RF)','Near TM',...
-  'Probe tip minus one-way delay to Near TM','Location','SouthWest','AutoUpdate','off','Box','off');
+  'Probe tip minus one-way delay to Near TM','Location',slegLoc,...
+  'AutoUpdate','off','Box','off');
 hold on;
 if ~isempty(ixz)
   plot(repmat(logfr(ixz),1,2),ylimLf,'r:');
@@ -210,22 +239,25 @@ title('Forward pressure level');
 xlabel('Frequency (kHz)');
 ylabel(sy);
 text(dx9,ylimLf(2),'A','HorizontalAlignment','left',...
-  'VerticalAlignment','top');
+  'HorizontalAlignment','right','VerticalAlignment','top');
 legend('Incident','Probe tip','Near TM',...
   'Location','SouthWest','AutoUpdate','off','Box','off');
 hold on;
-if ~isempty(ixz)
+if ~isempty(ixz) && ixz>1
   plot(repmat(logfr(ixz),1,2),ylimLf,'r:');
   plot([logfr(ixz)-1/3,logfr(ixz)+1/3],repmat(LFtm(ixz),1,2),'k:',...
     logfr(ixz),LFtm(ixz),'ko');
   text(logfr(ixz)-1/4,LFtm(ixz),[num2str(LFtm(ixz),'%.1f'),' dB'],...
     'HorizontalAlignment','right','VerticalAlignment','top');
 end
-[~,ixmax]=max(LFtm);
+itemp=logfr>0;
+[~,ixmax]=max(LFtm(itemp));
 plot([logfr(ixmax)-1/3,logfr(ixmax)+1/3],repmat(LFtm(ixmax),1,2),'k:',...
   logfr(ixmax),LFtm(ixmax),'ko');
-text(logfr(ixmax),LFtm(ixmax),[num2str(LFtm(ixmax),'%.1f'),' dB'],...
-  'HorizontalAlignment','center','VerticalAlignment','bottom');
+if 0 % optional to adapt in manuscript
+  text(logfr(ixmax),LFtm(ixmax),[num2str(LFtm(ixmax),'%.1f'),' dB'],...
+    'HorizontalAlignment','center','VerticalAlignment','bottom');
+end
 hold on;
 
 subplot(3,2,2),
@@ -240,10 +272,10 @@ title('Forward pressure group delay');
 xlabel('Frequency (kHz)');
 ylabel('Group delay (ms)');
 text(dx9,ylimgd(2),'B',...
-  'HorizontalAlignment','left','VerticalAlignment','top');
+  'HorizontalAlignment','right','VerticalAlignment','top');
 hl=legend('Incident','Probe tip','Near TM',...
   'One-way delay to Near TM',...
-  'Location','SouthWest','AutoUpdate','off','Box','off');
+  'Location',slegLoc,'AutoUpdate','off','Box','off');
 hold on;
 if ~isempty(ixz)
   plot(repmat(logfr(ixz),1,2),ylimLf,'r:');
@@ -264,33 +296,51 @@ h=findall(hf2, '-property', 'LineWidth');
 lw=1.2;
 set(h,{'LineWidth'}, num2cell(lw))
 drawnow;
-h=findall(hf2, '-property', 'fontsize');
-hFontSize = cell2mat(get(h,'FontSize'));
-newFontSize =hFontSize *1.1;
-set(h,{'FontSize'}, num2cell(newFontSize));
+if 0
+  h=findall(hf2, '-property', 'fontsize');
+  hFontSize = cell2mat(get(h,'FontSize'));
+  newFontSize =hFontSize *1.05;
+  set(h,{'FontSize'}, num2cell(newFontSize));
+end
+
 if swLossy
   hf5=figure(ifig);
   ifig=ifig+1;
-  set(hf5,'Position',[105,105,760,560]);
+  set(hf5,'Position',[105,105,820,600],'DefaultAxesFontSize',8);
   subplot(2,2,1),
   hp=plot(logfr,LFp-s.LFp,logfr,LFtm-s.LFtm);
   hp(1).Color=cr;
   hp(2).Color=cb;
-  ylimfLD=[-0.5,0.5];
-  ytickfLD=-0.4:0.2:0.4;
-  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
-    'YLim',ylimfLD,'YTick',ytickfLD);
-  title(['\Delta','Forward pressure level']);
+  if 0
+    ylim1=min([LFtm-s.LFtm,LRtm-s.LRtm]);
+    ylim2=max([LFtm-s.LFtm,LRtm-s.LRtm]);
+    ylimfLD=[ylim1,ylim2];
+    if ylim2-ylim1<0.03
+      ytickfLD=0.01*(floor(ylim1*100):ceil(ylim2*100));
+    elseif ylim2-ylim1<0.3
+      ytickfLD=0.1*(floor(ylim1*10):ceil(ylim2*10));
+    else
+      ytickfLD=floor(ylim1):ceil(ylim2);
+    end
+    set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
+      'YLim',ylimfLD,'YTick',ytickfLD);
+  else
+    set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl);
+  end
+  title({'Differences under lossy re: loss-less conditions',...
+    ['\Delta','Forward pressure level']});
   xlabel('Frequency (kHz)');
   ylabel(['\Delta',sy]);
-  text(dx9,0.5,'A',...
-    'HorizontalAlignment','left','VerticalAlignment','top');
+  ylimx=get(gca,'YLim');
+  text(dx9,ylimx(2),'A',...
+    'HorizontalAlignment','right','VerticalAlignment','top');
   legend('Probe tip','Near TM',...
     'Location','SouthWest','AutoUpdate','off','Box','off');
   hold on;
   if ~isempty(ixz)
     plot(repmat(logfr(ixz),1,2),ylimLf,'r:');
   end
+  
   ylimgd=[-0.0025,0.0025];
   ytickgd=-0.002:0.001:0.002;
   YTickLbl={'-0.002','-0.001','0','0.001','0.002'};
@@ -298,9 +348,26 @@ if swLossy
   hp=plot(logfr,GDFp-s.GDFp,'-',logfr,GDFtm-s.GDFtm,'-');
   hp(1).Color=cr;
   hp(2).Color=cb;
-  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
-    'YLim',ylimgd,'YTick',ytickgd,'YTickLabel',YTickLbl);
-  title(['\Delta','Forward pressure group delay']);
+  if 0
+    ylim1=min([GDFtm-s.GDFtm,GDRtm-s.GDRtm]);
+    ylim2=max([GDFtm-s.GDFtm,GDRtm-s.GDRtm]);
+    ylimgd=[ylim1,ylim2];
+    if ylim2-ylim1<0.03
+      ytickgd=0.01*(floor(ylim1*100):ceil(ylim2*100));
+    elseif ylim2-ylim1<0.3
+      ytickgd=0.1*(floor(ylim1*10):ceil(ylim2*10));
+    else
+      ytickfLD=floor(ylim1):ceil(ylim2);
+    end
+    %  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
+    %    'YLim',ylimgd,'YTick',ytickgd,'YTickLabel',YTickLbl);
+    set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
+      'YLim',ylimgd,'YTick',ytickgd);
+  else
+    set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl);
+  end
+  title({'Differences under lossy re: loss-less conditions',...
+    ['\Delta','Forward pressure group delay']});
   xlabel('Frequency (kHz)');
   ylabel(['\Delta','Group delay (ms)']);
   legend('Probe tip','Near TM',...
@@ -309,33 +376,40 @@ if swLossy
   if ~isempty(ixz)
     plot(repmat(logfr(ixz),1,2),ylimLf,'r:');
   end
-  text(dx9,ylimgd(2),'B',...
-    'HorizontalAlignment','left','VerticalAlignment','top');
+  ylimx=get(gca,'YLim');
+  text(dx9,ylimx(2),'B',...
+    'HorizontalAlignment','right','VerticalAlignment','top');
   
   subplot(2,2,3),
   hp=plot(logfr,LRp-s.LRp,logfr,LRtm-s.LRtm);
   hp(1).Color=cr;
   hp(2).Color=cb;
-  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
-    'YLim',ylimfLD,'YTick',ytickfLD);
+  %  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
+  %    'YLim',ylimfLD,'YTick',ytickfLD);
+  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl);
   title(['\Delta','Reverse pressure level']);
   xlabel('Frequency (kHz)');
   ylabel(['\Delta',sy]);
-  text(dx9,0.5,'C',...
-    'HorizontalAlignment','left','VerticalAlignment','top');
   legend('Probe tip (measured RF)','Near TM',...
     'Location','SouthWest','AutoUpdate','off','Box','off');
   hold on;
-  if ~isempty(ixz)
+  if 0 && ~isempty(ixz)
     plot(repmat(logfr(ixz),1,2),ylimLf,'r:');
   end
+  drawnow;
+  ylimx=get(gca,'YLim');
+  text(dx9,ylimx(2),'C',...
+    'HorizontalAlignment','right','VerticalAlignment','top');
   
   subplot(2,2,4),
   hp=plot(logfr,GDRp-s.GDRp,'-',logfr,GDRtm-s.GDRtm,'-');
   hp(1).Color=cr;
   hp(2).Color=cb;
-  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
-    'YLim',ylimgd,'YTick',ytickgd,'YTickLabel',YTickLbl);
+  %  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
+  %    'YLim',ylimgd,'YTick',ytickgd,'YTickLabel',YTickLbl);
+  %  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl,...
+  %    'YLim',ylimgd,'YTick',ytickgd);
+  set(gca,'XLim',XLimf,'XTick',XTickf,'XTickLabel',XTickLbl);
   title(['\Delta','Reverse pressure group delay']);
   xlabel('Frequency (kHz)');
   ylabel(['\Delta','Group delay (ms)']);
@@ -345,8 +419,9 @@ if swLossy
   if ~isempty(ixz)
     plot(repmat(logfr(ixz),1,2),ylimLf,'r:');
   end
-  text(dx9,ylimgd(2),'D',...
-    'HorizontalAlignment','left','VerticalAlignment','top');
+  ylimx=get(gca,'YLim');
+  text(dx9,ylimx(2),'D',...
+    'HorizontalAlignment','right','VerticalAlignment','top');
   
   drawnow;
   h=findall(hf5, '-property', 'LineWidth');
@@ -371,6 +446,6 @@ end
     else % linear squared magnitude
       LNorm=abs(pNormF).^2;
     end
-    GD=-gradient(unwrap(angle(pNormF)))/domegakHz;
+    GD=-gradient(unwrap(angle(pNormF)))/domegakHz; % in ms
   end
 end
